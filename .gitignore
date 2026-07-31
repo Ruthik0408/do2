@@ -1,5 +1,30 @@
-
+# Virtual environments
 .venv/
+**/.venv/
 venv/
+
+# Secrets
+.env
+**/.env
+
+# Python-generated files
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Build output
+build/
+dist/
+*.egg-info/
+
+# Editor files
+.vscode/
+.idea/
+
+# Notebook-generated files
+.ipynb_checkpoints/
+
+
+# Large generated artifacts
+72309012 bytes  do2_status_prediction/models_sqrt_baseline/do2_catboost.cbm

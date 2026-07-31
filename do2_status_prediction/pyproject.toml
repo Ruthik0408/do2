@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "do2-status-prediction"
+version = "0.1.0"
+description = "Leakage-safe binary CatBoost pipeline for DO2 status prediction"
+requires-python = ">=3.10"
+dependencies = [
+  "catboost>=1.2,<2",
+  "numpy>=1.26,<3",
+  "pandas>=2.2,<4",
+  "pyarrow>=15,<25",
+  "python-dotenv>=1,<2",
+  "scikit-learn>=1.4,<2",
+  "SQLAlchemy>=2,<3",
+  "psycopg[binary]>=3.1,<4",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<10",
+  "ruff>=0.6,<1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
