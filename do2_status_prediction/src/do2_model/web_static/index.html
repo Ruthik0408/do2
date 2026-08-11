@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DO2 Status Prediction</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="toolbar" aria-label="Prediction controls">
+        <div>
+          <h1>DO2 Status Prediction</h1>
+          <p>Compare existing Postgres status with the model prediction for a selected date range.</p>
+        </div>
+        <form id="prediction-form" class="controls">
+          <label>
+            From
+            <input id="start-date" name="start_date" type="date" required />
+          </label>
+          <label>
+            To
+            <input id="end-date" name="end_date" type="date" required />
+          </label>
+          <button type="submit">Run Prediction</button>
+        </form>
+      </section>
+
+      <section id="message" class="message" hidden></section>
+
+      <section class="metrics" aria-label="Prediction summary">
+        <article>
+          <span>Rows</span>
+          <strong id="rows-returned">0</strong>
+        </article>
+        <article>
+          <span>Matches</span>
+          <strong id="matches">0</strong>
+        </article>
+        <article>
+          <span>Mismatches</span>
+          <strong id="mismatches">0</strong>
+        </article>
+        <article>
+          <span>Predicted Non V</span>
+          <strong id="predicted-non-valid">0</strong>
+        </article>
+      </section>
+
+      <section class="table-wrap" aria-label="Status comparison">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>DO2 Date</th>
+              <th>Type</th>
+              <th>Old Status</th>
+              <th>Old Group</th>
+              <th>New Predicted</th>
+              <th>Non V Probability</th>
+              <th>Action</th>
+              <th>Result</th>
+            </tr>
+          </thead>
+          <tbody id="results-body">
+            <tr>
+              <td colspan="9" class="empty">Select a date range and run prediction.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

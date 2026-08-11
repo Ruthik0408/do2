@@ -179,6 +179,25 @@ python -m do2_model.predict \
 
 Use smaller date windows if the later period is too large for laptop memory.
 
+## Run the browser UI
+
+After `.env` is configured and the model files exist in `models/`, start the
+read-only prediction UI:
+
+```bash
+do2-prediction-ui --host 127.0.0.1 --port 8000
+```
+
+Or run it directly from source:
+
+```bash
+python -m do2_model.web --host 127.0.0.1 --port 8000
+```
+
+Open `http://127.0.0.1:8000`, select the `from` and `to` dates, then run the
+prediction. The page shows the old Postgres status beside the newly predicted
+`V` / `Not V` status, probability, recommended action, and match/mismatch flag.
+
 ## Run checks
 
 ```bash

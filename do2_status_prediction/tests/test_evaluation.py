@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from do2_model.evaluation import (
     classification_metrics,
@@ -27,3 +28,18 @@ def test_threshold_policy_table_uses_validation_metrics():
     assert set(policies["policy"]) == {"max_f1", "max_f2", "recall_80", "precision_50"}
     assert select_threshold(table, policy="max_f1") in set(table["threshold"])
     assert select_threshold(table, fixed_threshold=0.33) == 0.33
+
+
+def test_recall_policy_warns_when_constraint_not_met():
+    y_true = np.array([0, 0, 1, 1], dtype="int8")
+    probability = np.array([0.9, 0.8, 0.1, 0.2])
+    table = threshold_table(y_true, probability)
+
+    with pytest.warns(UserWarning, match="Recall SLA NOT met"):
+        threshold = select_threshold(
+            table,
+            policy="recall_80",
+            minimum_non_valid_recall=1.1,
+        )
+
+    assert threshold in set(table["threshold"])

@@ -42,6 +42,9 @@ def _prediction_output(
         output["created_at"] = raw["created_at"]
     if "do2_date" in raw:
         output["do2_date"] = raw["do2_date"]
+    for column in ("do2_type", "do2_group", "unit_code"):
+        if column in raw:
+            output[column] = raw[column]
     output["actual_status"] = normalize_status(raw["status"])
     output["actual_status_group"] = actual_status_group(raw)
     output["non_valid_probability"] = probability_non_valid
@@ -63,6 +66,8 @@ def run_training(
     iterations: int,
     depth: int,
     learning_rate: float,
+    l2_leaf_reg: float,
+    min_data_in_leaf: int,
     task_type: str,
     thread_count: int,
     minimum_non_valid_recall: float,
@@ -138,8 +143,11 @@ def run_training(
         iterations=iterations,
         depth=depth,
         learning_rate=learning_rate,
+        l2_leaf_reg=l2_leaf_reg,
+        min_data_in_leaf=min_data_in_leaf,
         loss_function="Logloss",
-        eval_metric="PRAUC:type=Classic",
+        eval_metric="Logloss",
+        custom_metric=["PRAUC:type=Classic", "AUC"],
         auto_class_weights="SqrtBalanced",
         random_seed=settings.random_seed,
         task_type=task_type,
@@ -152,10 +160,10 @@ def run_training(
         y_train,
         cat_features=train_features.categorical_columns,
         eval_set=(validation_features.frame, y_validation),
-        early_stopping_rounds=100,
+        early_stopping_rounds=200,
         use_best_model=True,
     )
-
+    print("Resolved class_weights:", model.get_all_params().get("class_weights"))
     validation_probability = model.predict_proba(validation_features.frame)[:, 1]
     thresholds = threshold_table(y_validation, validation_probability)
     threshold = select_threshold(
@@ -164,6 +172,8 @@ def run_training(
         policy=threshold_policy,
         fixed_threshold=fixed_threshold,
     )
+    selected_row = thresholds.iloc[(thresholds["threshold"] - threshold).abs().argsort()[:1]].iloc[0]
+    recall_constraint_met = bool(selected_row["recall_non_valid"] >= minimum_non_valid_recall)
 
     test_probability = model.predict_proba(test_features.frame)[:, 1]
     validation_metrics = classification_metrics(
@@ -193,6 +203,29 @@ def run_training(
             test_probability,
             threshold,
         ).to_csv(settings.report_root / "test_metrics_by_do2_type.csv", index=False)
+    if "do2_type" in validation_raw:
+        group_metrics(
+            validation_raw["do2_type"],
+            y_validation,
+            validation_probability,
+            threshold,
+        ).to_csv(settings.report_root / "validation_metrics_by_do2_type.csv", index=False)
+    if "do2_date" in validation_raw:
+        validation_month = pd.to_datetime(validation_raw["do2_date"], errors="coerce").dt.to_period("M")
+        group_metrics(
+            validation_month.astype("string"),
+            y_validation,
+            validation_probability,
+            threshold,
+        ).to_csv(settings.report_root / "validation_metrics_by_month.csv", index=False)
+    if "do2_date" in test_raw:
+        test_month = pd.to_datetime(test_raw["do2_date"], errors="coerce").dt.to_period("M")
+        group_metrics(
+            test_month.astype("string"),
+            y_test,
+            test_probability,
+            threshold,
+        ).to_csv(settings.report_root / "test_metrics_by_month.csv", index=False)
 
     test_predictions = _prediction_output(
         test_raw, y_test, test_probability, threshold
@@ -267,8 +300,13 @@ def run_training(
         "sparse_column_policy": "missing values retained for CatBoost; categorical blanks mapped to __MISSING__; no sparse-column drop fitted in this baseline",
         "selected_probability_non_valid_threshold": threshold,
         "threshold_policy": "fixed" if fixed_threshold is not None else threshold_policy,
+        "recall_constraint_met": recall_constraint_met,
         "minimum_requested_non_valid_recall": minimum_non_valid_recall,
         "training_mode": training_mode,
+        "regularization": {
+            "l2_leaf_reg": l2_leaf_reg,
+            "min_data_in_leaf": min_data_in_leaf,
+        },
         "sampling_config": {
             "max_train_rows": max_train_rows,
             "sampled_mode": "deterministic stratified by do2 month and original status",
@@ -309,8 +347,10 @@ def main() -> None:
         help="0 uses all configured training rows. Use 1000000 for a laptop test.",
     )
     parser.add_argument("--iterations", type=int, default=1500)
-    parser.add_argument("--depth", type=int, default=8)
-    parser.add_argument("--learning-rate", type=float, default=0.05)
+    parser.add_argument("--depth", type=int, default=6)
+    parser.add_argument("--learning-rate", type=float, default=0.02)
+    parser.add_argument("--l2-leaf-reg", type=float, default=8)
+    parser.add_argument("--min-data-in-leaf", type=int, default=50)
     parser.add_argument("--task-type", choices=["CPU", "GPU"], default="CPU")
     parser.add_argument("--thread-count", type=int, default=-1)
     parser.add_argument("--minimum-non-valid-recall", type=float, default=0.80)
@@ -327,6 +367,8 @@ def main() -> None:
         iterations=args.iterations,
         depth=args.depth,
         learning_rate=args.learning_rate,
+        l2_leaf_reg=args.l2_leaf_reg,
+        min_data_in_leaf=args.min_data_in_leaf,
         task_type=args.task_type,
         thread_count=args.thread_count,
         minimum_non_valid_recall=args.minimum_non_valid_recall,

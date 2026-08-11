@@ -7,6 +7,7 @@ setup(
     description="Leakage-safe binary CatBoost pipeline for DO2 status prediction",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
+    package_data={"do2_model": ["web_static/*"]},
     python_requires=">=3.10",
     install_requires=[
         "catboost>=1.2,<2",
@@ -22,6 +23,11 @@ setup(
         "dev": [
             "pytest>=8,<10",
             "ruff>=0.6,<1",
+        ],
+    },
+    entry_points={
+        "console_scripts": [
+            "do2-prediction-ui=do2_model.web:main",
         ],
     },
 )

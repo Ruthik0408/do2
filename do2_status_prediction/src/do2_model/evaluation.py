@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -69,6 +70,11 @@ def select_threshold(
                 ascending=[False, False, False],
             ).iloc[0]
         else:
+            warnings.warn(
+                f"No threshold achieved minimum_non_valid_recall={minimum_non_valid_recall}; "
+                "falling back to best F2 threshold. Recall SLA NOT met.",
+                stacklevel=2,
+            )
             selected = table.sort_values(
                 ["f2_non_valid", "recall_non_valid"], ascending=[False, False]
             ).iloc[0]

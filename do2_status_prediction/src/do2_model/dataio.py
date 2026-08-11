@@ -74,10 +74,8 @@ def _strata_frame(frame: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def _allocate_sample_counts(counts: pd.DataFrame, *, max_rows: int) -> pd.DataFrame:
+def _top_up_sample_counts(counts: pd.DataFrame, *, max_rows: int) -> pd.DataFrame:
     counts = counts.copy()
-    counts["exact"] = max_rows * counts["rows"] / counts["rows"].sum()
-    counts["take"] = counts["exact"].apply(math.floor).astype(int)
     counts.loc[counts["take"].eq(0) & counts["rows"].gt(0), "take"] = 1
     while counts["take"].sum() > max_rows:
         candidates = counts[counts["take"].gt(1)].sort_values(
@@ -95,6 +93,57 @@ def _allocate_sample_counts(counts: pd.DataFrame, *, max_rows: int) -> pd.DataFr
             break
         counts.loc[candidates.index[0], "take"] += 1
     return counts.drop(columns=[column for column in ("remaining",) if column in counts])
+
+
+def _allocate_sample_counts(
+    counts: pd.DataFrame,
+    *,
+    max_rows: int,
+    recent_months: int = 12,
+    recent_floor_frac: float = 0.4,
+) -> pd.DataFrame:
+    counts = counts.copy()
+    if counts.empty:
+        return counts.assign(exact=0.0, take=0)
+
+    unique_months = sorted(counts["month"].dropna().unique())
+    recent_cutoff = unique_months[-recent_months:] if len(unique_months) > recent_months else unique_months
+    recent_mask = counts["month"].isin(recent_cutoff)
+
+    recent_budget = int(max_rows * recent_floor_frac) if recent_cutoff else 0
+    remaining_budget = max_rows - recent_budget
+
+    recent = counts[recent_mask].copy()
+    if not recent.empty and recent["rows"].sum() > 0 and recent_budget > 0:
+        recent["recent_exact"] = recent_budget * recent["rows"] / recent["rows"].sum()
+        recent["recent_take"] = recent["recent_exact"].apply(math.floor).astype(int)
+    else:
+        recent["recent_exact"] = 0.0
+        recent["recent_take"] = 0
+
+    base = counts.copy()
+    base["base_exact"] = remaining_budget * base["rows"] / base["rows"].sum()
+    base["base_take"] = base["base_exact"].apply(math.floor).astype(int)
+
+    allocated = counts.merge(
+        recent[["month", "status", "recent_exact", "recent_take"]],
+        on=["month", "status"],
+        how="left",
+    ).fillna({"recent_exact": 0.0, "recent_take": 0})
+    allocated = allocated.merge(
+        base[["month", "status", "base_exact", "base_take"]],
+        on=["month", "status"],
+        how="left",
+    )
+    allocated["exact"] = allocated["recent_exact"] + allocated["base_exact"]
+    allocated["take"] = (
+        allocated["recent_take"].astype(int) + allocated["base_take"].astype(int)
+    ).clip(upper=allocated["rows"])
+    allocated = allocated.drop(
+        columns=["recent_exact", "recent_take", "base_exact", "base_take"],
+        errors="ignore",
+    )
+    return _top_up_sample_counts(allocated, max_rows=max_rows)
 
 
 def _load_stratified_sample(

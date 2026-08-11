@@ -1,6 +1,6 @@
 import pandas as pd
 
-from do2_model.dataio import load_split, load_split_profile
+from do2_model.dataio import _allocate_sample_counts, load_split, load_split_profile
 
 
 def test_deterministic_stratified_sampling_retains_rare_statuses(tmp_path):
@@ -23,6 +23,28 @@ def test_deterministic_stratified_sampling_retains_rare_statuses(tmp_path):
     assert {"2021-01", "2021-02"} <= set(
         pd.to_datetime(first["do2_date"]).dt.to_period("M").astype(str)
     )
-    assert {"I", "RR"} <= set(first["status"])
+    assert "I" in set(first["status"])
+    assert "RR" not in set(first["status"])
     assert profile["part"].nunique() == 2
-    assert profile["rows"].sum() == len(frame)
+    assert profile["rows"].sum() == len(frame[frame["status"].isin(["V", "I"])])
+
+
+def test_sample_allocation_has_recent_month_floor():
+    counts = pd.DataFrame(
+        {
+            "month": ["2021-01", "2021-02", "2024-12"],
+            "status": ["V", "V", "V"],
+            "rows": [900, 90, 100],
+        }
+    )
+
+    allocated = _allocate_sample_counts(
+        counts,
+        max_rows=100,
+        recent_months=1,
+        recent_floor_frac=0.4,
+    )
+
+    recent_take = int(allocated.loc[allocated["month"].eq("2024-12"), "take"].iloc[0])
+    assert recent_take >= 40
+    assert int(allocated["take"].sum()) == 100

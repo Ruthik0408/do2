@@ -49,9 +49,9 @@ class Settings:
 
 
 SPLITS = {
-    "train": ("2021-01-01", "2025-01-01"),
-    "validation": ("2025-01-01", "2025-07-01"),
-    "test": ("2025-07-01", "2025-12-31"),
+    "train": ("2021-01-01", "2025-07-01"),
+    "validation": ("2025-07-01", "2026-01-01"),
+    "test": ("2026-01-01", "2026-08-01"),
 }
 
 
@@ -87,6 +87,23 @@ LEAKAGE_COLUMNS: dict[str, str] = {
     "fk_put_mr_ao": "MR placement decision actor",
     "fk_put_mr_ao_date": "MR placement decision date",
     "mr_put_reason": "MR placement decision reason",
+    "fk_task": "unusable: never populated in current schema profile",
+    "sms_sent_at": "unusable/workflow notification timestamp",
+    "pan": "unusable: never populated in current schema profile",
+    "cfa_sanction_received": "sanction/approval stage outcome flag; treat as leakage until confirmed safe",
+    "cfa_sanction_letter_no": "sanction letter presence likely post-decision; treat as leakage until confirmed safe",
+    "cfa_sanction_date": "post-decision sanction date; treat as leakage until confirmed safe",
+    "sms_sent": "workflow notification likely triggered post-decision",
+    "input_qe": "QE actor pattern may indicate review-stage actor; treat as leakage until confirmed safe",
+    "fk_usr": "possibly processing actor rather than submitter; treat as leakage until confirmed safe",
+    "audit_cage": "audit-selection flag may be post-submission; treat as leakage until confirmed safe",
+    "remarks": "free-text remarks may be reviewer-authored; treat as leakage until confirmed safe",
+    "pto_remarks": "free-text remarks may be reviewer-authored; treat as leakage until confirmed safe",
+    "column9_remarks": "free-text remarks may be reviewer-authored; treat as leakage until confirmed safe",
+    "transcription_type": "unclear workflow field; treat as leakage until confirmed safe",
+    "column_a": "unnamed generic field with unknown semantics; exclude until verified",
+    "column_b": "unnamed generic field with unknown semantics; exclude until verified",
+    "column_c": "unnamed generic field with unknown semantics; exclude until verified",
 }
 
 

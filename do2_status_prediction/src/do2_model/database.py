@@ -98,6 +98,7 @@ def iter_date_range(
     *,
     require_status: bool,
     chunk_size: int | None = None,
+    maturity_cutoff_date: str | None = None,
 ) -> Iterator[pd.DataFrame]:
     schema = _validate_identifier(settings.db_schema, "schema")
     table = _validate_identifier(settings.db_table, "table")
@@ -110,6 +111,9 @@ def iter_date_range(
     status_filter = (
         f"AND NULLIF(BTRIM({quote('status')}::text), '') IS NOT NULL" if require_status else ""
     )
+    maturity_filter = (
+        f"AND {quote(date_column)} <= :maturity_cutoff_date" if maturity_cutoff_date else ""
+    )
     query = text(
         f"""
         SELECT {selected_sql}
@@ -117,13 +121,17 @@ def iter_date_range(
         WHERE {quote(date_column)} >= :start_date
           AND {quote(date_column)} < :end_date
           {status_filter}
+          {maturity_filter}
         """
     )
+    params = {"start_date": start_date, "end_date": end_date}
+    if maturity_cutoff_date:
+        params["maturity_cutoff_date"] = maturity_cutoff_date
 
     yield from pd.read_sql_query(
         query,
         engine,
-        params={"start_date": start_date, "end_date": end_date},
+        params=params,
         chunksize=chunk_size or settings.chunk_size,
     )
 
@@ -137,6 +145,7 @@ def extract_split(
     *,
     overwrite: bool = False,
     chunk_size: int | None = None,
+    maturity_cutoff_date: str | None = None,
 ) -> dict[str, int | str]:
     output_dir = settings.data_root / split_name
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -163,6 +172,7 @@ def extract_split(
             end_date,
             require_status=True,
             chunk_size=chunk_size,
+            maturity_cutoff_date=maturity_cutoff_date,
         ),
         start=1,
     ):
@@ -189,6 +199,7 @@ def extract_split(
         "split": split_name,
         "start_date": start_date,
         "end_date_exclusive": end_date,
+        "maturity_cutoff_date": maturity_cutoff_date or "",
         "rows": total_rows,
         "valid_rows": valid_rows,
         "non_valid_rows": non_valid_rows,

@@ -1,4 +1,11 @@
-from do2_model.database import _DATE_FEATURE_COLUMNS, _select_expression
+import inspect
+
+from do2_model.database import (
+    _DATE_FEATURE_COLUMNS,
+    _select_expression,
+    extract_split,
+    iter_date_range,
+)
 
 
 def _quote(identifier: str) -> str:
@@ -8,6 +15,11 @@ def _quote(identifier: str) -> str:
 def test_date_feature_columns_are_selected_as_text():
     for column in _DATE_FEATURE_COLUMNS:
         assert _select_expression(column, _quote) == f'"{column}"::text AS "{column}"'
+
+
+def test_extraction_accepts_label_maturity_cutoff():
+    assert "maturity_cutoff_date" in inspect.signature(iter_date_range).parameters
+    assert "maturity_cutoff_date" in inspect.signature(extract_split).parameters
 
 
 def test_no_database_status_or_approval_update_code_exists():
