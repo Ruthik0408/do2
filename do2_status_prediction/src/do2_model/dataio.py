@@ -197,7 +197,6 @@ def _load_stratified_sample(
 
 def sampling_profile(frame: pd.DataFrame) -> pd.DataFrame:
     status = normalize_status(frame["status"])
-    binary = status.ne("V").astype("int8")
     dates = pd.to_datetime(frame.get("do2_date"), errors="coerce")
     return (
         pd.DataFrame(
@@ -205,14 +204,13 @@ def sampling_profile(frame: pd.DataFrame) -> pd.DataFrame:
                 "year": dates.dt.year.astype("Int64").astype("string").fillna("__MISSING__"),
                 "month": dates.dt.to_period("M").astype("string").fillna("__MISSING__"),
                 "status": status,
-                "is_non_valid": binary,
             }
         )
-        .groupby(["year", "month", "status", "is_non_valid"], dropna=False)
+        .groupby(["year", "month", "status"], dropna=False)
         .size()
         .rename("rows")
         .reset_index()
-        .sort_values(["year", "month", "status", "is_non_valid"])
+        .sort_values(["year", "month", "status"])
     )
 
 
@@ -228,10 +226,10 @@ def parquet_sampling_profile(files: list[Path]) -> pd.DataFrame:
         profiles.append(profile)
     if not profiles:
         return pd.DataFrame(
-            columns=["year", "month", "status", "is_non_valid", "rows", "part", "path"]
+            columns=["year", "month", "status", "rows", "part", "path"]
         )
     return pd.concat(profiles, ignore_index=True).sort_values(
-        ["year", "month", "status", "is_non_valid", "part"]
+        ["year", "month", "status", "part"]
     )
 
 

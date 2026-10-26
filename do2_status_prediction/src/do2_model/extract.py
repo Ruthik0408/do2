@@ -41,8 +41,14 @@ def run_extraction(*, overwrite: bool, chunk_size: int, maturity_days: int) -> p
     finally:
         engine.dispose()
 
-    profile = pd.DataFrame(summaries)
-    profile["non_valid_pct"] = 100.0 * profile["non_valid_rows"] / profile["rows"]
+    rows = []
+    for summary in summaries:
+        row = {key: value for key, value in summary.items() if key != "status_counts"}
+        for status, count in summary["status_counts"].items():
+            row[f"status_{status}_rows"] = count
+            row[f"status_{status}_pct"] = 100.0 * count / summary["rows"]
+        rows.append(row)
+    profile = pd.DataFrame(rows).fillna(0)
     profile.to_csv(settings.report_root / "extract_profile.csv", index=False)
     print(profile.to_string(index=False))
     return profile

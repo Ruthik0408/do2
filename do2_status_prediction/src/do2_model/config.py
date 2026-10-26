@@ -22,8 +22,11 @@ class Settings:
     database_url: str | None = os.getenv("DATABASE_URL")
     db_schema: str = os.getenv("DB_SCHEMA", "public")
     db_table: str = os.getenv("DB_TABLE", "do2")
-    db_date_column: str = os.getenv("DB_DATE_COLUMN", "do2_date")
+    db_date_column: str = os.getenv("DB_DATE_COLUMN", "created_at")
     chunk_size: int = int(os.getenv("DB_CHUNK_SIZE", "100000"))
+    enable_rule_history_sql: bool = os.getenv("DB_ENABLE_RULE_HISTORY_SQL", "0") == "1"
+    enable_family_identity_sql: bool = os.getenv("DB_ENABLE_FAMILY_IDENTITY_SQL", "0") == "1"
+    enable_appendix_j_sql: bool = os.getenv("DB_ENABLE_APPENDIX_J_SQL", "1") == "1"
     random_seed: int = 42
 
     @property
@@ -49,9 +52,9 @@ class Settings:
 
 
 SPLITS = {
-    "train": ("2021-01-01", "2025-07-01"),
-    "validation": ("2025-07-01", "2026-01-01"),
-    "test": ("2026-01-01", "2026-08-01"),
+    "train": ("2022-01-01", "2024-01-01"),
+    "validation": ("2024-01-01", "2025-01-01"),
+    "test": ("2025-01-01", "2026-01-01"),
 }
 
 
@@ -90,24 +93,41 @@ LEAKAGE_COLUMNS: dict[str, str] = {
     "fk_task": "unusable: never populated in current schema profile",
     "sms_sent_at": "unusable/workflow notification timestamp",
     "pan": "unusable: never populated in current schema profile",
-    "cfa_sanction_received": "sanction/approval stage outcome flag; treat as leakage until confirmed safe",
-    "cfa_sanction_letter_no": "sanction letter presence likely post-decision; treat as leakage until confirmed safe",
-    "cfa_sanction_date": "post-decision sanction date; treat as leakage until confirmed safe",
     "sms_sent": "workflow notification likely triggered post-decision",
-    "input_qe": "QE actor pattern may indicate review-stage actor; treat as leakage until confirmed safe",
     "fk_usr": "possibly processing actor rather than submitter; treat as leakage until confirmed safe",
-    "audit_cage": "audit-selection flag may be post-submission; treat as leakage until confirmed safe",
     "remarks": "free-text remarks may be reviewer-authored; treat as leakage until confirmed safe",
-    "pto_remarks": "free-text remarks may be reviewer-authored; treat as leakage until confirmed safe",
-    "column9_remarks": "free-text remarks may be reviewer-authored; treat as leakage until confirmed safe",
-    "transcription_type": "unclear workflow field; treat as leakage until confirmed safe",
-    "column_a": "unnamed generic field with unknown semantics; exclude until verified",
-    "column_b": "unnamed generic field with unknown semantics; exclude until verified",
-    "column_c": "unnamed generic field with unknown semantics; exclude until verified",
+    "audit_cage": "audit/workflow flag; treat as leakage until confirmed safe at initial DO2 entry",
 }
 
 
 def load_feature_config(path: Path | None = None) -> dict[str, Any]:
     config_path = path or Settings().feature_config_path
     with config_path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+        config = json.load(handle)
+
+    candidates = config["candidate_columns"]
+    if len(candidates) != len(set(candidates)):
+        raise ValueError("candidate_columns contains duplicates")
+
+    availability = config["column_availability"]
+    allowed_sources = set(availability["entry_payload"]) | set(
+        availability["system_at_entry"]
+    ) | set(availability["target_only"])
+    unexpected_candidates = sorted(set(candidates) - allowed_sources)
+    if unexpected_candidates:
+        raise ValueError(f"Candidate columns are unavailable at prediction time: {unexpected_candidates}")
+    unknown_required = sorted(set(config["required_input_columns"]) - set(candidates))
+    if unknown_required:
+        raise ValueError(f"Required input columns are not extracted: {unknown_required}")
+
+    forbidden = set(availability["outcome_or_workflow_forbidden"])
+    configured_forbidden = set(config["excluded_leakage_columns"]) - {"status"}
+    if forbidden != configured_forbidden:
+        raise ValueError("outcome_or_workflow_forbidden and excluded_leakage_columns disagree")
+    code_forbidden = set(LEAKAGE_COLUMNS) - {"status"}
+    if forbidden != code_forbidden:
+        raise ValueError("Feature configuration and Python leakage policy disagree")
+    leaked_candidates = sorted((set(candidates) & forbidden) - {"status"})
+    if leaked_candidates:
+        raise ValueError(f"Post-entry columns configured as candidates: {leaked_candidates}")
+    return config

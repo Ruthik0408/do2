@@ -25,6 +25,12 @@ dist/
 # Notebook-generated files
 .ipynb_checkpoints/
 
-
 # Large generated artifacts
-72309012 bytes  do2_status_prediction/models_sqrt_baseline/do2_catboost.cbm
+catboost_info/
+models*/
+reports*/
+do2_status_prediction/models*/
+do2_status_prediction/reports*/
+*.cbm
+*.pkl
+*.parquet

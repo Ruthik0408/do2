@@ -24,9 +24,9 @@ def test_deterministic_stratified_sampling_retains_rare_statuses(tmp_path):
         pd.to_datetime(first["do2_date"]).dt.to_period("M").astype(str)
     )
     assert "I" in set(first["status"])
-    assert "RR" not in set(first["status"])
+    assert "RR" in set(first["status"])
     assert profile["part"].nunique() == 2
-    assert profile["rows"].sum() == len(frame[frame["status"].isin(["V", "I"])])
+    assert profile["rows"].sum() == len(frame)
 
 
 def test_sample_allocation_has_recent_month_floor():

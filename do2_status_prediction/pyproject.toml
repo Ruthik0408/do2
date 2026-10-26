@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "do2-status-prediction"
 version = "0.1.0"
-description = "Leakage-safe binary CatBoost pipeline for DO2 status prediction"
+description = "Leakage-safe multiclass DO2 status prediction"
 requires-python = ">=3.10"
 dependencies = [
   "catboost>=1.2,<2",
@@ -19,8 +19,13 @@ dependencies = [
 ]
 
 [project.scripts]
-do2-prediction-ui = "do2_model.web:main"
-do2-threshold-diagnostics = "do2_model.threshold_diagnostics:main"
+do2-extract = "do2_model.extract:main"
+do2-train = "do2_model.train:main"
+do2-predict = "do2_model.predict:main"
+do2-prediction-ui = "do2_model.ui:main"
+do2-train-multiclass = "do2_model.train_multiclass:main"
+do2-predict-multiclass = "do2_model.predict_multiclass:main"
+do2-train-db-notebook = "do2_model.train_db_notebook_logic:main"
 
 [project.optional-dependencies]
 dev = [
@@ -30,9 +35,6 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.setuptools.package-data]
-do2_model = ["web_static/*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
